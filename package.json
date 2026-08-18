@@ -1,0 +1,29 @@
+{
+  "name": "ai-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "build:shared": "pnpm --filter @ai-gateway/shared run typecheck",
+    "build:ui": "pnpm --filter @ai-gateway/ui run build",
+    "start": "pnpm --filter @ai-gateway/core run start",
+    "dev": "concurrently \"pnpm --filter @ai-gateway/core run dev\" \"pnpm --filter @ai-gateway/ui run dev\" --names core,ui --prefix-colors auto",
+    "dev:core": "pnpm --filter @ai-gateway/core run dev",
+    "dev:ui": "pnpm --filter @ai-gateway/ui run dev",
+    "test": "pnpm -r --if-present run test",
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "typecheck:shared": "pnpm --filter @ai-gateway/shared run typecheck",
+    "typecheck:ui": "pnpm --filter @ai-gateway/ui run typecheck",
+    "db:generate": "pnpm --filter @ai-gateway/core run db:generate",
+    "test:e2e": "pnpm --filter @ai-gateway/e2e run test",
+    "test:e2e:ui": "pnpm --filter @ai-gateway/e2e run test:ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "concurrently": "^9.1.2"
+  }
+}
