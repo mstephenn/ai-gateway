@@ -10,3 +10,4 @@ dist/
 .env.*.local
 **/src/db/generated/
 docs/superpowers/
+packages/e2e/
