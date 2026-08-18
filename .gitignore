@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.output/
+.wrangler/
+.worktrees/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+**/src/db/generated/
+docs/superpowers/

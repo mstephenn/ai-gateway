@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/db/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Deployment {
+  id               String  @id @default(uuid())
+  modelName        String  @map("model_name")
+  provider         String
+  providerModelId  String  @map("provider_model_id")
+  credentialsRef   String  @map("credentials_ref")
+  weight           Int     @default(1)
+  isActive         Boolean @default(true) @map("is_active")
+  timeoutMs        Int?    @map("timeout_ms")
+  maxRetries       Int?    @map("max_retries")
+  retryBackoffMs   Int?    @map("retry_backoff_ms")
+
+  @@map("deployments")
+}
+
+model ProviderCredential {
+  id               String   @id @default(uuid())
+  provider         String   @map("provider")
+  name             String
+  configCiphertext String   @map("config_ciphertext")
+  configIv         String   @map("config_iv")
+  configAuthTag    String   @map("config_auth_tag")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, name])
+  @@map("provider_credentials")
+}
+
+model Team {
+  id            String    @id @default(uuid())
+  name          String
+  budgetLimit   Decimal?  @map("budget_limit") @db.Decimal(19, 4)
+  spent         Decimal   @default(0) @map("spent") @db.Decimal(19, 4)
+  allowedModels String[]  @default([]) @map("allowed_models")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  apiKeys  ApiKey[]
+  orgUnits OrgUnit[]
+
+  @@map("teams")
+}
+
+model ApiKey {
+  id            String    @id @default(uuid())
+  teamId        String?   @map("team_id")
+  name          String?
+  keyHash       String    @unique @map("key_hash")
+  keyPrefix     String    @map("key_prefix")
+  isActive      Boolean   @default(true) @map("is_active")
+  isAdmin       Boolean   @default(false) @map("is_admin")
+  expiresAt     DateTime? @map("expires_at")
+  budgetLimit   Decimal?  @map("budget_limit") @db.Decimal(19, 4)
+  spent         Decimal   @default(0) @map("spent") @db.Decimal(19, 4)
+  rpmLimit      Int?      @map("rpm_limit")
+  tpmLimit      Int?      @map("tpm_limit")
+  allowedModels String[]  @default([]) @map("allowed_models")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastUsedAt    DateTime? @map("last_used_at")
+
+  team Team? @relation(fields: [teamId], references: [id])
+
+  @@map("api_keys")
+}
+
+model ModelPricing {
+  id              String   @id @default(uuid())
+  modelName       String   @unique @map("model_name")
+  inputTokenPrice Decimal  @map("input_token_price") @db.Decimal(19, 8)
+  outputTokenPrice Decimal @map("output_token_price") @db.Decimal(19, 8)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("model_pricing")
+}
+
+model RequestLog {
+  id             String   @id @default(uuid())
+  apiKeyId       String   @map("api_key_id")
+  modelName      String   @map("model_name")
+  deploymentId   String?  @map("deployment_id")
+  latencyMs      Int      @map("latency_ms")
+  inputTokens    Int?     @map("input_tokens")
+  outputTokens   Int?     @map("output_tokens")
+  status         Int
+  cacheHit       Boolean  @default(false) @map("cache_hit")
+  stream         Boolean  @default(false) @map("stream")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("request_logs")
+}
+
+enum OrgUnitType {
+  root
+  business_unit
+  department
+  cost_center
+  project
+  team
+}
+
+enum UserStatus {
+  active
+  inactive
+}
+
+enum UserSource {
+  manual
+  directory
+  linked
+}
+
+enum DirectorySyncProvider {
+  azure_ad
+}
+
+enum DirectorySyncMode {
+  preview
+  apply
+}
+
+enum DirectorySyncRunStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+enum DirectorySyncChangeAction {
+  create_user
+  update_user
+  disable_user
+  add_membership
+  remove_membership
+}
+
+enum DirectorySyncChangeStatus {
+  pending
+  applied
+  skipped
+  failed
+}
+
+enum GuardrailRuleType {
+  keyword_block
+  pii_mask
+  moderation
+}
+
+model GuardrailRule {
+  id        String            @id @default(uuid())
+  name      String
+  type      GuardrailRuleType
+  enabled   Boolean           @default(true)
+  config    Json              @default("{}")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@map("guardrail_rules")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  memberships Membership[]
+
+  @@map("roles")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  domain    String?  @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orgUnits OrgUnit[]
+  users    User[]
+  syncConfigs DirectorySyncConfig[]
+
+  @@map("organizations")
+}
+
+model OrgUnit {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  type           OrgUnitType
+  name           String
+  parentId       String?     @map("parent_id")
+  teamId         String?     @map("team_id")
+  externalId     String?     @map("external_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  parent       OrgUnit?      @relation("OrgUnitHierarchy", fields: [parentId], references: [id])
+  children     OrgUnit[]     @relation("OrgUnitHierarchy")
+  team         Team?         @relation(fields: [teamId], references: [id])
+  memberships  Membership[]
+
+  @@map("org_units")
+}
+
+model User {
+  id             String     @id @default(uuid())
+  organizationId String?    @map("organization_id")
+  email          String     @unique
+  name           String?
+  status         UserStatus @default(active)
+  source         UserSource @default(manual)
+  externalId     String?    @map("external_id")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  memberships  Membership[]
+
+  @@map("users")
+}
+
+model Membership {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  orgUnitId  String   @map("org_unit_id")
+  roleId     String   @map("role_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  orgUnit OrgUnit @relation(fields: [orgUnitId], references: [id])
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, orgUnitId])
+  @@map("memberships")
+}
+
+model DirectorySyncConfig {
+  id             String                @id @default(uuid())
+  organizationId String                @map("organization_id")
+  provider       DirectorySyncProvider
+  tenantId       String                @map("tenant_id")
+  clientId       String                @map("client_id")
+  clientSecretRef String               @map("client_secret_ref")
+  syncMode       DirectorySyncMode     @map("sync_mode")
+  groupMappings  Json                  @default("{}") @map("group_mappings")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  runs         DirectorySyncRun[]
+
+  @@map("directory_sync_configs")
+}
+
+model DirectorySyncRun {
+  id           String                   @id @default(uuid())
+  configId     String                   @map("config_id")
+  status       DirectorySyncRunStatus   @default(pending)
+  startedAt    DateTime?                @map("started_at")
+  completedAt  DateTime?                @map("completed_at")
+  summary      Json                     @default("{}")
+  createdAt    DateTime                 @default(now()) @map("created_at")
+
+  config   DirectorySyncConfig   @relation(fields: [configId], references: [id])
+  changes  DirectorySyncChange[]
+
+  @@map("directory_sync_runs")
+}
+
+model DirectorySyncChange {
+  id        String                    @id @default(uuid())
+  runId     String                    @map("run_id")
+  action    DirectorySyncChangeAction
+  userEmail String                    @map("user_email")
+  oldValues Json                      @default("{}") @map("old_values")
+  newValues Json                      @default("{}") @map("new_values")
+  status    DirectorySyncChangeStatus @default(pending)
+  error     String?
+  createdAt DateTime                  @default(now()) @map("created_at")
+
+  run DirectorySyncRun @relation(fields: [runId], references: [id])
+
+  @@map("directory_sync_changes")
+}
